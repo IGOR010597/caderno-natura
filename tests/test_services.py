@@ -3,7 +3,17 @@ from collections import OrderedDict
 import pytest
 from openpyxl import load_workbook
 
-from app.services import aggregate_products, create_workbook, normalize_ai_items, parse_ocr_text
+from io import BytesIO
+
+from PIL import Image
+
+from app.services import (
+    aggregate_products,
+    create_workbook,
+    normalize_ai_items,
+    normalize_image,
+    parse_ocr_text,
+)
 
 
 def test_parse_supported_notations():
@@ -33,6 +43,19 @@ def test_normalize_ai_items_marks_low_confidence_for_review():
     ])
     assert rows[0] == {"code": "001234", "quantity": 2, "status": "OK", "raw_line": "001234 x2"}
     assert rows[1]["status"] == "Revisar"
+
+
+def test_normalize_image_converts_and_resizes_mobile_photo():
+    original = Image.new("RGBA", (3000, 2000), (255, 255, 255, 180))
+    source = BytesIO()
+    original.save(source, "PNG")
+
+    result = normalize_image(source.getvalue())
+    converted = Image.open(BytesIO(result))
+
+    assert converted.format == "JPEG"
+    assert converted.mode == "RGB"
+    assert max(converted.size) == 1800
 
 
 def test_aggregate_sums_duplicates_and_keeps_code_as_string():

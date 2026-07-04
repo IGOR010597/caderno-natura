@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import json
+import logging
 import os
 from collections import OrderedDict
 from io import BytesIO
@@ -10,6 +11,9 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+
+
+logger = logging.getLogger(__name__)
 
 
 QUANTITY_MARKER = r"(?:[-–—:*=]|[xX]|qtd\.?|quantidade)?"
@@ -94,6 +98,29 @@ def normalize_ai_items(items: list[dict]) -> list[dict]:
     return rows
 
 
+def normalize_image(content: bytes, max_dimension: int = 1800) -> bytes:
+    """Convert mobile formats, apply EXIF rotation and cap upload size for the AI."""
+    try:
+        from pillow_heif import register_heif_opener
+
+        register_heif_opener()
+        image = Image.open(BytesIO(content))
+        image = ImageOps.exif_transpose(image)
+        image.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+        if image.mode != "RGB":
+            background = Image.new("RGB", image.size, "white")
+            if "A" in image.getbands():
+                background.paste(image, mask=image.getchannel("A"))
+            else:
+                background.paste(image)
+            image = background
+        output = BytesIO()
+        image.save(output, format="JPEG", quality=86, optimize=True)
+        return output.getvalue()
+    except Exception as exc:
+        raise ValueError("A foto não pôde ser convertida. Tente enviá-la como JPG.") from exc
+
+
 def extract_rows_with_gemini(content: bytes, mime_type: str) -> list[dict]:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -118,7 +145,17 @@ def extract_rows_with_gemini(content: bytes, mime_type: str) -> list[dict]:
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise RuntimeError("A IA retornou uma leitura inválida.") from exc
     except Exception as exc:
-        raise RuntimeError("A leitura com IA está temporariamente indisponível.") from exc
+        logger.warning("Gemini image extraction failed: %s: %s", type(exc).__name__, exc)
+        status_code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+        if status_code == 429:
+            message = "O limite gratuito da IA foi atingido. Tente novamente em um minuto."
+        elif status_code in (401, 403):
+            message = "A chave da IA não foi autorizada."
+        elif status_code == 400:
+            message = "A IA não aceitou o formato desta foto."
+        else:
+            message = "A leitura com IA está temporariamente indisponível."
+        raise RuntimeError(message) from exc
 
 
 def extract_text_from_image(content: bytes) -> str:

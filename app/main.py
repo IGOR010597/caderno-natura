@@ -15,6 +15,7 @@ from .services import (
     create_workbook,
     extract_rows_with_gemini,
     extract_text_from_image,
+    normalize_image,
     parse_ocr_text,
 )
 
@@ -49,12 +50,16 @@ async def run_ocr(image: UploadFile = File(...)):
     if not content:
         raise HTTPException(400, "A imagem está vazia.")
     try:
-        rows = extract_rows_with_gemini(content, image.content_type or "image/jpeg")
+        normalized_content = normalize_image(content)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    try:
+        rows = extract_rows_with_gemini(normalized_content, "image/jpeg")
         return {"rows": rows, "engine": "gemini", "warning": None}
     except RuntimeError as ai_error:
         ai_warning = str(ai_error)
     try:
-        text = extract_text_from_image(content)
+        text = extract_text_from_image(normalized_content)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
