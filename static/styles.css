@@ -28,6 +28,8 @@ button { cursor: pointer; }
 .brand small { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
 .icon-button { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); color: var(--wine); background: var(--paper); display: grid; place-items: center; }
 .icon-button svg { width: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.top-actions { display: flex; align-items: center; gap: 8px; }
+.install-top { background: var(--wine); color: white; border-color: var(--wine); }
 main { min-height: calc(100vh - 150px); }
 .hero { max-width: 610px; margin: auto; padding: 62px 22px 45px; text-align: center; }
 .eyebrow, .step-label { color: var(--orange); font-size: 11px; font-weight: 800; letter-spacing: .14em; }

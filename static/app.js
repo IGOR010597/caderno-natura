@@ -242,30 +242,33 @@ function isAppInstalled() {
   return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 }
 
-function showInstallPrompt(ios = false) {
-  if (isAppInstalled() || sessionStorage.getItem("installPromptDismissed")) return;
+function showInstallPrompt(ios = false, manual = false) {
+  if (isAppInstalled()) return;
   $("#iosInstallHint").classList.toggle("hidden", !ios);
-  $("#installAppButton").classList.toggle("hidden", ios);
+  $("#manualInstallHint").classList.toggle("hidden", ios || !manual);
+  $("#installAppButton").classList.toggle("hidden", ios || manual);
   $("#installDescription").textContent = ios
     ? "No iPhone, a instalação é feita pelo menu de compartilhamento do Safari."
-    : "Use como aplicativo, direto da tela inicial e sem precisar procurar o endereço novamente.";
+    : manual
+      ? "Seu navegador oferece a instalação pelo menu principal."
+      : "Use como aplicativo, direto da tela inicial e sem precisar procurar o endereço novamente.";
   $("#installPrompt").classList.remove("hidden");
 }
 
 function hideInstallPrompt() {
   $("#installPrompt").classList.add("hidden");
-  sessionStorage.setItem("installPromptDismissed", "1");
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallPrompt = event;
-  showInstallPrompt(false);
+  showInstallPrompt(false, false);
 });
 
 window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
   $("#installPrompt").classList.add("hidden");
+  $("#installTop").classList.add("hidden");
   localStorage.setItem("naturaAppInstalled", "1");
   showToast("Aplicativo instalado com sucesso!");
 });
@@ -299,15 +302,21 @@ $("#installAppButton").addEventListener("click", async () => {
   const choice = await deferredInstallPrompt.userChoice;
   deferredInstallPrompt = null;
   $("#installPrompt").classList.add("hidden");
-  if (choice.outcome !== "accepted") sessionStorage.setItem("installPromptDismissed", "1");
 });
 $("#installClose").addEventListener("click", hideInstallPrompt);
 $("#installLater").addEventListener("click", hideInstallPrompt);
+$("#installTop").addEventListener("click", () => {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  showInstallPrompt(isIos, !isIos && !deferredInstallPrompt);
+});
 
 window.addEventListener("load", () => {
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (isAppInstalled()) return;
-  setTimeout(() => showInstallPrompt(isIos), 900);
+  if (isAppInstalled()) {
+    $("#installTop").classList.add("hidden");
+    return;
+  }
+  setTimeout(() => showInstallPrompt(isIos, !isIos && !deferredInstallPrompt), 900);
 });
 
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/static/sw.js"));

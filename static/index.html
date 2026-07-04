@@ -7,6 +7,7 @@
   <meta name="description" content="Transforme anotações do caderno em uma planilha de importação Natura.">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
   <link rel="stylesheet" href="/static/styles.css">
   <title>Caderno para Natura</title>
 </head>
@@ -16,9 +17,14 @@
       <span class="brand-mark" aria-hidden="true">N</span>
       <span><strong>Caderno</strong><small>para Natura</small></span>
     </a>
-    <button class="icon-button" id="historyTop" type="button" aria-label="Abrir histórico" title="Histórico">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"/></svg>
-    </button>
+    <div class="top-actions">
+      <button class="icon-button install-top" id="installTop" type="button" aria-label="Instalar no celular" title="Instalar no celular">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>
+      </button>
+      <button class="icon-button" id="historyTop" type="button" aria-label="Abrir histórico" title="Histórico">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"/></svg>
+      </button>
+    </div>
   </header>
 
   <main>
@@ -127,6 +133,9 @@
         <p id="installDescription">Use como aplicativo, direto da tela inicial e sem precisar procurar o endereço novamente.</p>
         <div class="ios-install hidden" id="iosInstallHint">
           Toque em <strong>Compartilhar</strong> <span aria-hidden="true">□↑</span> e depois em <strong>Adicionar à Tela de Início</strong>.
+        </div>
+        <div class="ios-install hidden" id="manualInstallHint">
+          Toque no menu <strong>⋮</strong> do navegador e escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.
         </div>
         <button class="install-button" id="installAppButton" type="button">Instalar aplicativo</button>
         <button class="install-later" id="installLater" type="button">Agora não</button>
