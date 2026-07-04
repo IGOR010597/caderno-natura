@@ -1,4 +1,5 @@
 const state = { rows: [], imageFile: null, generated: null };
+let deferredInstallPrompt = null;
 const $ = (selector) => document.querySelector(selector);
 const sections = [$("#inicio"), $("#reviewSection"), $("#successSection"), $("#historySection")];
 
@@ -237,6 +238,38 @@ function formatDate(value) {
   return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
+function isAppInstalled() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function showInstallPrompt(ios = false) {
+  if (isAppInstalled() || sessionStorage.getItem("installPromptDismissed")) return;
+  $("#iosInstallHint").classList.toggle("hidden", !ios);
+  $("#installAppButton").classList.toggle("hidden", ios);
+  $("#installDescription").textContent = ios
+    ? "No iPhone, a instalação é feita pelo menu de compartilhamento do Safari."
+    : "Use como aplicativo, direto da tela inicial e sem precisar procurar o endereço novamente.";
+  $("#installPrompt").classList.remove("hidden");
+}
+
+function hideInstallPrompt() {
+  $("#installPrompt").classList.add("hidden");
+  sessionStorage.setItem("installPromptDismissed", "1");
+}
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  showInstallPrompt(false);
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  $("#installPrompt").classList.add("hidden");
+  localStorage.setItem("naturaAppInstalled", "1");
+  showToast("Aplicativo instalado com sucesso!");
+});
+
 $("#cameraButton").addEventListener("click", () => $("#cameraInput").click());
 $("#galleryButton").addEventListener("click", () => $("#galleryInput").click());
 $("#cameraInput").addEventListener("change", (event) => processImage(event.target.files[0]));
@@ -259,6 +292,22 @@ $("#newOrderButton").addEventListener("click", () => {
   state.rows = []; state.imageFile = null; state.generated = null;
   $("#reviewConfirmed").checked = false;
   showSection($("#inicio"));
+});
+$("#installAppButton").addEventListener("click", async () => {
+  if (!deferredInstallPrompt) return showToast("Use o menu do navegador e escolha “Instalar aplicativo”.");
+  deferredInstallPrompt.prompt();
+  const choice = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  $("#installPrompt").classList.add("hidden");
+  if (choice.outcome !== "accepted") sessionStorage.setItem("installPromptDismissed", "1");
+});
+$("#installClose").addEventListener("click", hideInstallPrompt);
+$("#installLater").addEventListener("click", hideInstallPrompt);
+
+window.addEventListener("load", () => {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isAppInstalled()) return;
+  setTimeout(() => showInstallPrompt(isIos), 900);
 });
 
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/static/sw.js"));
