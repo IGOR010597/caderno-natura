@@ -1,4 +1,4 @@
-const CACHE = "caderno-natura-v1";
+const CACHE = "caderno-natura-v2";
 const ASSETS = ["/", "/static/styles.css", "/static/app.js", "/static/icon.svg"];
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS))));
 self.addEventListener("activate", (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))));
@@ -8,4 +8,3 @@ self.addEventListener("fetch", (event) => {
     const copy = response.clone(); caches.open(CACHE).then((cache) => cache.put(event.request, copy)); return response;
   }).catch(() => caches.match(event.request)));
 });
-

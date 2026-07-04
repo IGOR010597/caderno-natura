@@ -3,7 +3,7 @@ from collections import OrderedDict
 import pytest
 from openpyxl import load_workbook
 
-from app.services import aggregate_products, create_workbook, parse_ocr_text
+from app.services import aggregate_products, create_workbook, normalize_ai_items, parse_ocr_text
 
 
 def test_parse_supported_notations():
@@ -24,6 +24,15 @@ def test_parse_preserves_unrecognized_lines_for_review():
     assert all(row["status"] == "Revisar" for row in rows)
     assert rows[1]["raw_line"] == "texto impossível"
     assert rows[2]["quantity"] is None
+
+
+def test_normalize_ai_items_marks_low_confidence_for_review():
+    rows = normalize_ai_items([
+        {"code": "001234", "quantity": 2, "confidence": "alta", "source_text": "001234 x2"},
+        {"code": "78910?", "quantity": 1, "confidence": "baixa", "source_text": "78910? 1"},
+    ])
+    assert rows[0] == {"code": "001234", "quantity": 2, "status": "OK", "raw_line": "001234 x2"}
+    assert rows[1]["status"] == "Revisar"
 
 
 def test_aggregate_sums_duplicates_and_keeps_code_as_string():
@@ -60,4 +69,3 @@ def test_workbook_has_exact_natura_structure(tmp_path):
     assert sheet["A2"].number_format == "@"
     assert sheet["B2"].value == 5
     assert isinstance(sheet["B2"].value, int)
-

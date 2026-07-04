@@ -113,10 +113,12 @@ async function processImage(file) {
   if (!file) return;
   state.imageFile = file;
   if (file.size > 15 * 1024 * 1024) return showToast("A imagem deve ter no máximo 15 MB.");
-  setLoading(true);
+  setLoading(true, "Preparando a foto…", "Reduzindo o tamanho para uma leitura mais rápida");
   const data = new FormData();
-  data.append("image", file);
   try {
+    const uploadFile = await compressImage(file);
+    data.append("image", uploadFile, "foto-caderno.jpg");
+    setLoading(true, "Lendo a foto com IA…", "Identificando códigos e quantidades manuscritos");
     const response = await fetch("/api/ocr", { method: "POST", body: data });
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Não foi possível ler a foto.");
@@ -124,6 +126,7 @@ async function processImage(file) {
     $("#reviewConfirmed").checked = false;
     renderRows();
     showSection($("#reviewSection"));
+    if (result.warning) showToast(result.warning);
     if (!state.rows.length) showToast("O OCR não encontrou linhas. Você pode adicioná-las manualmente.");
   } catch (error) {
     state.rows = [];
@@ -134,6 +137,30 @@ async function processImage(file) {
     setLoading(false);
     $("#cameraInput").value = "";
     $("#galleryInput").value = "";
+  }
+}
+
+async function compressImage(file) {
+  if (!file.type.startsWith("image/")) return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const maxDimension = 1800;
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size < 1_500_000 && file.type === "image/jpeg") {
+      bitmap.close();
+      return file;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d", { alpha: false }).drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise((resolve, reject) =>
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Falha ao preparar imagem.")), "image/jpeg", .84)
+    );
+    return new File([blob], "foto-caderno.jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
   }
 }
 
@@ -235,4 +262,3 @@ $("#newOrderButton").addEventListener("click", () => {
 });
 
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/static/sw.js"));
-

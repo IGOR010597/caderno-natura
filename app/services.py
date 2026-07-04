@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import json
+import os
 from collections import OrderedDict
 from io import BytesIO
 from pathlib import Path
@@ -40,6 +42,83 @@ def parse_ocr_text(text: str) -> list[dict]:
             }
         )
     return rows
+
+
+AI_PROMPT = """
+Analise esta foto de uma página de caderno com um pedido de produtos Natura.
+Extraia SOMENTE o código numérico do produto e sua quantidade inteira em cada linha.
+O primeiro número da linha é o código; o segundo é a quantidade. Considere formatos
+como '123456 2', '123456 - 2', '123456 x2', '123456 qtd 2' e '123456 quantidade 2'.
+Preserve zeros à esquerda. Não inclua nome, cliente, preço, valor ou observações.
+Não invente dígitos escondidos ou ilegíveis. Marque confiança como 'baixa' se houver
+qualquer dúvida em um dígito ou se código/quantidade estiverem incompletos. Inclua em
+source_text a anotação curta que originou cada item. Retorne os itens na ordem da foto.
+"""
+
+AI_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "Código exatamente como visto."},
+                    "quantity": {"type": ["integer", "null"]},
+                    "confidence": {"type": "string", "enum": ["alta", "baixa"]},
+                    "source_text": {"type": "string"},
+                },
+                "required": ["code", "quantity", "confidence", "source_text"],
+            },
+        }
+    },
+    "required": ["items"],
+}
+
+
+def normalize_ai_items(items: list[dict]) -> list[dict]:
+    rows: list[dict] = []
+    for item in items:
+        code = str(item.get("code", "")).strip().replace(" ", "")
+        quantity = item.get("quantity")
+        if isinstance(quantity, bool) or not isinstance(quantity, int):
+            quantity = None
+        confident = item.get("confidence") == "alta"
+        valid = code.isdigit() and quantity is not None and quantity > 0 and confident
+        rows.append({
+            "code": code,
+            "quantity": quantity,
+            "status": "OK" if valid else "Revisar",
+            "raw_line": str(item.get("source_text", "")).strip(),
+        })
+    return rows
+
+
+def extract_rows_with_gemini(content: bytes, mime_type: str) -> list[dict]:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY não configurada.")
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
+            contents=[types.Part.from_bytes(data=content, mime_type=mime_type), AI_PROMPT],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_json_schema=AI_SCHEMA,
+                temperature=0,
+            ),
+        )
+        payload = json.loads(response.text or "{}")
+        return normalize_ai_items(payload.get("items", []))
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("A IA retornou uma leitura inválida.") from exc
+    except Exception as exc:
+        raise RuntimeError("A leitura com IA está temporariamente indisponível.") from exc
 
 
 def extract_text_from_image(content: bytes) -> str:
@@ -107,4 +186,3 @@ def create_workbook(products: OrderedDict[str, int], destination: Path) -> None:
     sheet.column_dimensions["A"].width = 18
     sheet.column_dimensions["B"].width = 10
     workbook.save(destination)
-

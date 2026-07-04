@@ -23,9 +23,14 @@ Aplicação web mobile-first que lê códigos e quantidades de uma foto, exige c
 
 O histórico fica em `data/natura.db` e os arquivos gerados em `data/generated/`.
 
+## Leitura manuscrita com Gemini
+
+Defina `GEMINI_API_KEY` no ambiente para usar a leitura de imagem com IA. Sem essa
+variável, ou se a API estiver indisponível, o sistema usa Tesseract automaticamente.
+O modelo pode ser alterado opcionalmente com `GEMINI_MODEL`.
+
 ## Testes
 
 ```powershell
 pytest -q
 ```
-

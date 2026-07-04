@@ -56,6 +56,7 @@ h1 em { color: var(--wine); font-weight: 500; }
 .steps strong, .steps small { display: block; font-size: 10px; line-height: 1.3; }
 .steps strong { color: var(--ink); text-transform: uppercase; letter-spacing: .05em; }
 .steps i { width: 28px; height: 1px; background: var(--line); margin: 0 9px; }
+.hero .privacy-note { margin: 24px auto 0; max-width: 390px; color: #958b90; font-size: 10px; line-height: 1.45; }
 .workspace { max-width: 900px; margin: 0 auto; padding: 36px 22px 65px; }
 .back-link { border: 0; background: none; color: var(--wine); font-weight: 700; padding: 8px 0; margin-bottom: 27px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
@@ -137,4 +138,3 @@ footer span { color: var(--wine); font-weight: 800; }
   .review-check { padding: 8px 0; }
   .success-card { padding: 32px 20px; }
 }
-

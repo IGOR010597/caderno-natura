@@ -10,7 +10,13 @@ from fastapi.staticfiles import StaticFiles
 
 from .database import add_history, get_history, initialize, list_history
 from .models import SpreadsheetRequest
-from .services import aggregate_products, create_workbook, extract_text_from_image, parse_ocr_text
+from .services import (
+    aggregate_products,
+    create_workbook,
+    extract_rows_with_gemini,
+    extract_text_from_image,
+    parse_ocr_text,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,12 +49,22 @@ async def run_ocr(image: UploadFile = File(...)):
     if not content:
         raise HTTPException(400, "A imagem está vazia.")
     try:
+        rows = extract_rows_with_gemini(content, image.content_type or "image/jpeg")
+        return {"rows": rows, "engine": "gemini", "warning": None}
+    except RuntimeError as ai_error:
+        ai_warning = str(ai_error)
+    try:
         text = extract_text_from_image(content)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
-    return {"rows": parse_ocr_text(text), "raw_text": text}
+    return {
+        "rows": parse_ocr_text(text),
+        "raw_text": text,
+        "engine": "tesseract",
+        "warning": f"{ai_warning} Foi usada a leitura básica como alternativa.",
+    }
 
 
 @app.post("/api/spreadsheets", status_code=201)
@@ -95,4 +111,3 @@ def download_spreadsheet(item_id: int):
         filename=item["filename"],
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-
