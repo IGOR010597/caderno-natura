@@ -231,13 +231,12 @@ function shareSpreadsheet() {
   }
 
   // Calling share without an awaited fetch preserves the mobile user gesture permission.
-  navigator.share({
-    title: "Pedido Natura",
-    text: "Planilha de importação Natura",
-    files: [state.generatedFile],
-  }).catch((error) => {
+  navigator.share({ files: [state.generatedFile] }).catch((error) => {
     if (error.name !== "AbortError") {
-      showToast("O celular bloqueou o compartilhamento. Use “Baixar planilha” e envie como Documento no WhatsApp.");
+      const reason = error.name === "NotAllowedError"
+        ? "O Android bloqueou este tipo de compartilhamento."
+        : "Não foi possível abrir o compartilhamento.";
+      showToast(`${reason} Use “Baixar planilha” e envie como Documento no WhatsApp.`);
     }
   });
 }

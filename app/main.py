@@ -35,6 +35,13 @@ app = FastAPI(title="Caderno para Natura", version="1.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.middleware("http")
+async def allow_mobile_capabilities(request, call_next):
+    response = await call_next(request)
+    response.headers["Permissions-Policy"] = "web-share=(self), camera=(self)"
+    return response
+
+
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(STATIC_DIR / "index.html")

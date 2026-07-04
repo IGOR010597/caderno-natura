@@ -14,6 +14,13 @@ def test_generation_requires_review():
     assert response.status_code == 400
 
 
+def test_home_allows_native_web_share():
+    client = TestClient(main.app)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "web-share=(self)" in response.headers["permissions-policy"]
+
+
 def test_generate_and_download(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "GENERATED_DIR", tmp_path / "generated")
     monkeypatch.setattr(main, "DB_PATH", tmp_path / "test.db")
@@ -40,4 +47,3 @@ def test_generate_and_download(tmp_path, monkeypatch):
     download = client.get(result["download_url"])
     assert download.status_code == 200
     assert download.content[:2] == b"PK"
-
