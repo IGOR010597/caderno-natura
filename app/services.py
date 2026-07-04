@@ -4,6 +4,8 @@ import re
 import json
 import logging
 import os
+import base64
+import zlib
 from collections import OrderedDict
 from io import BytesIO
 from pathlib import Path
@@ -224,6 +226,11 @@ def aggregate_products(products: list[dict]) -> OrderedDict[str, int]:
 
 
 def create_workbook(products: OrderedDict[str, int], destination: Path) -> None:
+    workbook = build_workbook(products)
+    workbook.save(destination)
+
+
+def build_workbook(products: OrderedDict[str, int]) -> Workbook:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Sheet1"
@@ -235,4 +242,39 @@ def create_workbook(products: OrderedDict[str, int], destination: Path) -> None:
     sheet["B1"].font = Font(bold=True)
     sheet.column_dimensions["A"].width = 18
     sheet.column_dimensions["B"].width = 10
-    workbook.save(destination)
+    return workbook
+
+
+def create_workbook_bytes(products: OrderedDict[str, int]) -> bytes:
+    output = BytesIO()
+    build_workbook(products).save(output)
+    return output.getvalue()
+
+
+def encode_share_token(products: OrderedDict[str, int]) -> str:
+    payload = json.dumps({"p": list(products.items())}, separators=(",", ":"))
+    compressed = zlib.compress(payload.encode("utf-8"), level=9)
+    return base64.urlsafe_b64encode(compressed).rstrip(b"=").decode("ascii")
+
+
+def decode_share_token(token: str) -> OrderedDict[str, int]:
+    if not token or len(token) > 12_000:
+        raise ValueError("Link de compartilhamento inválido.")
+    try:
+        padded = token + "=" * (-len(token) % 4)
+        compressed = base64.b64decode(padded, altchars=b"-_", validate=True)
+        decompressor = zlib.decompressobj()
+        raw = decompressor.decompress(compressed, 100_001)
+        if len(raw) > 100_000 or decompressor.unconsumed_tail:
+            raise ValueError
+        payload = json.loads(raw.decode("utf-8"))
+        items = payload["p"]
+        if not isinstance(items, list) or len(items) > 500:
+            raise ValueError
+        return aggregate_products([
+            {"code": item[0], "quantity": item[1]}
+            for item in items
+            if isinstance(item, list) and len(item) == 2
+        ])
+    except Exception as exc:
+        raise ValueError("Link de compartilhamento inválido.") from exc

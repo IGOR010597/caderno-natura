@@ -1,15 +1,16 @@
 from collections import OrderedDict
+from io import BytesIO
 
 import pytest
 from openpyxl import load_workbook
-
-from io import BytesIO
-
 from PIL import Image
 
 from app.services import (
     aggregate_products,
     create_workbook,
+    create_workbook_bytes,
+    decode_share_token,
+    encode_share_token,
     normalize_ai_items,
     normalize_image,
     parse_ocr_text,
@@ -92,3 +93,14 @@ def test_workbook_has_exact_natura_structure(tmp_path):
     assert sheet["A2"].number_format == "@"
     assert sheet["B2"].value == 5
     assert isinstance(sheet["B2"].value, int)
+
+
+def test_share_token_round_trip_and_workbook_generation():
+    products = OrderedDict([("001234", 5), ("789101", 1)])
+    token = encode_share_token(products)
+    decoded = decode_share_token(token)
+    workbook = load_workbook(BytesIO(create_workbook_bytes(decoded)))
+    assert decoded == products
+    assert list(workbook["Sheet1"].values) == [
+        ("CÓDIGO", "QT"), ("001234", 5), ("789101", 1)
+    ]

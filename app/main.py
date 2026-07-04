@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database import add_history, get_history, initialize, list_history
@@ -13,6 +14,9 @@ from .models import SpreadsheetRequest
 from .services import (
     aggregate_products,
     create_workbook,
+    create_workbook_bytes,
+    decode_share_token,
+    encode_share_token,
     extract_rows_with_gemini,
     extract_text_from_image,
     normalize_image,
@@ -100,9 +104,25 @@ def generate_spreadsheet(payload: SpreadsheetRequest):
         "id": item_id,
         "filename": filename,
         "download_url": f"/api/spreadsheets/{item_id}/download",
+        "share_url": f"/s/{encode_share_token(products)}",
         "product_count": len(products),
         "unit_count": sum(products.values()),
     }
+
+
+@app.get("/s/{token}", include_in_schema=False)
+def shared_spreadsheet(token: str):
+    try:
+        products = decode_share_token(token)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    filename = f"pedido_natura_{datetime.now():%d-%m-%Y}.xlsx"
+    content = create_workbook_bytes(products)
+    return StreamingResponse(
+        BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/history")

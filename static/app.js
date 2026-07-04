@@ -1,4 +1,4 @@
-const state = { rows: [], imageFile: null, generated: null, generatedFile: null };
+const state = { rows: [], imageFile: null, generated: null };
 let deferredInstallPrompt = null;
 const $ = (selector) => document.querySelector(selector);
 const sections = [$("#inicio"), $("#reviewSection"), $("#successSection"), $("#historySection")];
@@ -180,21 +180,12 @@ async function generateSpreadsheet() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Não foi possível gerar a planilha.");
     state.generated = result;
-    state.generatedFile = null;
-    try {
-      const fileResponse = await fetch(result.download_url);
-      if (!fileResponse.ok) throw new Error("Arquivo indisponível.");
-      const blob = await fileResponse.blob();
-      state.generatedFile = new File([blob], result.filename, {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-    } catch {
-      // The regular download link remains available if preloading is not possible.
-    }
     $("#successFilename").textContent = result.filename;
     $("#successSummary").textContent = `${result.product_count} produtos • ${result.unit_count} unidades`;
     $("#downloadButton").href = result.download_url;
-    updateShareButton();
+    $("#shareButton").textContent = "Compartilhar link da planilha";
+    $("#shareHint").textContent = "O Android abrirá as opções de compartilhamento. Quem receber poderá baixar o Excel pelo link.";
+    $("#shareHint").classList.remove("hidden");
     showSection($("#successSection"));
   } catch (error) {
     showToast(error.message);
@@ -203,40 +194,21 @@ async function generateSpreadsheet() {
   }
 }
 
-function canShareGeneratedFile() {
-  return Boolean(
-    state.generatedFile &&
-    navigator.share &&
-    navigator.canShare?.({ files: [state.generatedFile] })
-  );
-}
-
-function updateShareButton() {
-  const supported = canShareGeneratedFile();
-  $("#shareButton").textContent = supported
-    ? "Compartilhar no WhatsApp"
-    : "Baixar para enviar no WhatsApp";
-  $("#shareHint").textContent = supported
-    ? "O menu do celular será aberto. Escolha WhatsApp."
-    : "Seu navegador não permite anexar Excel diretamente. O arquivo será baixado para você anexar no WhatsApp.";
-  $("#shareHint").classList.remove("hidden");
-}
-
 function shareSpreadsheet() {
   if (!state.generated) return;
-  if (!canShareGeneratedFile()) {
-    $("#downloadButton").click();
-    showToast("Planilha baixada. No WhatsApp, toque no clipe e escolha Documento.");
+  const shareUrl = new URL(state.generated.share_url, window.location.origin).href;
+  const shareData = {
+    title: "Pedido Natura",
+    text: "Planilha de importação Natura:",
+    url: shareUrl,
+  };
+  if (!navigator.share) {
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(`${shareData.text} ${shareUrl}`)}`;
     return;
   }
-
-  // Calling share without an awaited fetch preserves the mobile user gesture permission.
-  navigator.share({ files: [state.generatedFile] }).catch((error) => {
+  navigator.share(shareData).catch((error) => {
     if (error.name !== "AbortError") {
-      const reason = error.name === "NotAllowedError"
-        ? "O Android bloqueou este tipo de compartilhamento."
-        : "Não foi possível abrir o compartilhamento.";
-      showToast(`${reason} Use “Baixar planilha” e envie como Documento no WhatsApp.`);
+      window.location.href = `https://wa.me/?text=${encodeURIComponent(`${shareData.text} ${shareUrl}`)}`;
     }
   });
 }
@@ -325,7 +297,7 @@ $("#reviewConfirmed").addEventListener("change", refreshReviewState);
 $("#generateButton").addEventListener("click", generateSpreadsheet);
 $("#shareButton").addEventListener("click", shareSpreadsheet);
 $("#newOrderButton").addEventListener("click", () => {
-  state.rows = []; state.imageFile = null; state.generated = null; state.generatedFile = null;
+  state.rows = []; state.imageFile = null; state.generated = null;
   $("#reviewConfirmed").checked = false;
   showSection($("#inicio"));
 });

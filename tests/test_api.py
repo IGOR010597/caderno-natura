@@ -43,7 +43,12 @@ def test_generate_and_download(tmp_path, monkeypatch):
     assert result["product_count"] == 1
     assert result["unit_count"] == 5
     assert result["filename"].startswith("pedido_natura_")
+    assert result["share_url"].startswith("/s/")
 
     download = client.get(result["download_url"])
     assert download.status_code == 200
     assert download.content[:2] == b"PK"
+
+    shared = client.get(result["share_url"])
+    assert shared.status_code == 200
+    assert shared.content[:2] == b"PK"
