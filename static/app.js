@@ -1,4 +1,4 @@
-const state = { rows: [], imageFile: null, generated: null };
+const state = { rows: [], imageFile: null, generated: null, generatedFile: null };
 let deferredInstallPrompt = null;
 const $ = (selector) => document.querySelector(selector);
 const sections = [$("#inicio"), $("#reviewSection"), $("#successSection"), $("#historySection")];
@@ -180,9 +180,21 @@ async function generateSpreadsheet() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Não foi possível gerar a planilha.");
     state.generated = result;
+    state.generatedFile = null;
+    try {
+      const fileResponse = await fetch(result.download_url);
+      if (!fileResponse.ok) throw new Error("Arquivo indisponível.");
+      const blob = await fileResponse.blob();
+      state.generatedFile = new File([blob], result.filename, {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+    } catch {
+      // The regular download link remains available if preloading is not possible.
+    }
     $("#successFilename").textContent = result.filename;
     $("#successSummary").textContent = `${result.product_count} produtos • ${result.unit_count} unidades`;
     $("#downloadButton").href = result.download_url;
+    updateShareButton();
     showSection($("#successSection"));
   } catch (error) {
     showToast(error.message);
@@ -191,21 +203,43 @@ async function generateSpreadsheet() {
   }
 }
 
-async function shareSpreadsheet() {
+function canShareGeneratedFile() {
+  return Boolean(
+    state.generatedFile &&
+    navigator.share &&
+    navigator.canShare?.({ files: [state.generatedFile] })
+  );
+}
+
+function updateShareButton() {
+  const supported = canShareGeneratedFile();
+  $("#shareButton").textContent = supported
+    ? "Compartilhar no WhatsApp"
+    : "Baixar para enviar no WhatsApp";
+  $("#shareHint").textContent = supported
+    ? "O menu do celular será aberto. Escolha WhatsApp."
+    : "Seu navegador não permite anexar Excel diretamente. O arquivo será baixado para você anexar no WhatsApp.";
+  $("#shareHint").classList.remove("hidden");
+}
+
+function shareSpreadsheet() {
   if (!state.generated) return;
-  try {
-    const response = await fetch(state.generated.download_url);
-    if (!response.ok) throw new Error("Arquivo indisponível.");
-    const blob = await response.blob();
-    const file = new File([blob], state.generated.filename, { type: blob.type });
-    if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ title: "Pedido Natura", text: "Planilha de importação Natura", files: [file] });
-    } else {
-      showToast("Seu navegador não compartilha arquivos. Baixe a planilha e anexe-a no WhatsApp.");
-    }
-  } catch (error) {
-    if (error.name !== "AbortError") showToast(error.message || "Não foi possível compartilhar.");
+  if (!canShareGeneratedFile()) {
+    $("#downloadButton").click();
+    showToast("Planilha baixada. No WhatsApp, toque no clipe e escolha Documento.");
+    return;
   }
+
+  // Calling share without an awaited fetch preserves the mobile user gesture permission.
+  navigator.share({
+    title: "Pedido Natura",
+    text: "Planilha de importação Natura",
+    files: [state.generatedFile],
+  }).catch((error) => {
+    if (error.name !== "AbortError") {
+      showToast("O celular bloqueou o compartilhamento. Use “Baixar planilha” e envie como Documento no WhatsApp.");
+    }
+  });
 }
 
 async function showHistory() {
@@ -292,7 +326,7 @@ $("#reviewConfirmed").addEventListener("change", refreshReviewState);
 $("#generateButton").addEventListener("click", generateSpreadsheet);
 $("#shareButton").addEventListener("click", shareSpreadsheet);
 $("#newOrderButton").addEventListener("click", () => {
-  state.rows = []; state.imageFile = null; state.generated = null;
+  state.rows = []; state.imageFile = null; state.generated = null; state.generatedFile = null;
   $("#reviewConfirmed").checked = false;
   showSection($("#inicio"));
 });

@@ -104,6 +104,7 @@ h1 em { color: var(--wine); font-weight: 500; }
 .file-card span { margin-top: 5px; color: var(--muted); font-size: 12px; }
 .whatsapp-button, .download-button { width: 100%; min-height: 54px; display: grid; place-items: center; border-radius: 13px; font-weight: 800; text-decoration: none; }
 .whatsapp-button { border: 0; background: #1ca963; color: white; margin-bottom: 10px; }
+.share-hint { margin: -2px 0 12px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .download-button { border: 1px solid var(--wine); color: var(--wine); }
 .new-order { margin-top: 19px; border: 0; background: none; color: var(--muted); text-decoration: underline; }
 .history-list { display: grid; gap: 10px; }
