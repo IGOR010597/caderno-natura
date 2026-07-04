@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.py[cod]
+data/*.db
+data/generated/*.xlsx
+!data/generated/.gitkeep
+

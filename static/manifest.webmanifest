@@ -1,0 +1,11 @@
+{
+  "name": "Caderno para Natura",
+  "short_name": "Natura",
+  "description": "Gere a planilha Natura a partir de uma foto do caderno.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf8f3",
+  "theme_color": "#71304f",
+  "icons": [{ "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
+

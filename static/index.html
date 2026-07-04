@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7a3153">
+  <meta name="description" content="Transforme anotações do caderno em uma planilha de importação Natura.">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>Caderno para Natura</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#inicio" aria-label="Caderno para Natura - início">
+      <span class="brand-mark" aria-hidden="true">N</span>
+      <span><strong>Caderno</strong><small>para Natura</small></span>
+    </a>
+    <button class="icon-button" id="historyTop" type="button" aria-label="Abrir histórico" title="Histórico">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="eyebrow"><span></span> PEDIDO SEM DIGITAÇÃO</div>
+      <h1>Do caderno para a<br><em>planilha pronta.</em></h1>
+      <p>Fotografe seus códigos, confira a leitura e gere o arquivo da Natura em poucos passos.</p>
+
+      <div class="action-stack">
+        <button class="primary-action" id="cameraButton" type="button">
+          <span class="action-icon"><svg viewBox="0 0 24 24"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+          <span><strong>Tirar foto do caderno</strong><small>Use a câmera do celular</small></span>
+          <span class="arrow">→</span>
+        </button>
+        <button class="secondary-action" id="galleryButton" type="button">
+          <span class="action-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m4 17 5-4 3 2 3-3 5 5"/></svg></span>
+          <span><strong>Enviar foto da galeria</strong><small>Escolha uma imagem salva</small></span>
+          <span class="arrow">→</span>
+        </button>
+        <button class="text-action" id="historyButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h5"/></svg>
+          Ver últimas planilhas geradas
+        </button>
+      </div>
+
+      <div class="steps" aria-label="Etapas do processo">
+        <div><b>1</b><span><strong>Fotografe</strong><small>o caderno</small></span></div>
+        <i></i>
+        <div><b>2</b><span><strong>Confira</strong><small>os códigos</small></span></div>
+        <i></i>
+        <div><b>3</b><span><strong>Compartilhe</strong><small>a planilha</small></span></div>
+      </div>
+    </section>
+
+    <section class="workspace hidden" id="reviewSection" aria-labelledby="reviewTitle">
+      <button class="back-link" id="backButton" type="button">← Voltar ao início</button>
+      <div class="section-heading">
+        <div>
+          <span class="step-label">ETAPA 2 DE 3</span>
+          <h2 id="reviewTitle">Confira os produtos</h2>
+          <p>O OCR pode confundir números manuscritos. Revise todas as linhas.</p>
+        </div>
+        <div class="summary-pill"><strong id="rowCount">0</strong><span>produtos</span></div>
+      </div>
+
+      <div class="notice warning hidden" id="reviewNotice" role="status"></div>
+      <div class="table-card">
+        <div class="table-head"><span>Código</span><span>Quantidade</span><span>Status</span><span>Ações</span></div>
+        <div id="productRows"></div>
+        <div class="empty-state hidden" id="emptyRows">
+          <strong>Nenhum produto identificado</strong>
+          <span>Adicione uma linha manualmente ou tente reprocessar a foto.</span>
+        </div>
+        <button class="add-button" id="addRowButton" type="button">＋ Adicionar produto manualmente</button>
+      </div>
+
+      <div class="review-tools">
+        <button class="outline-button" id="reprocessButton" type="button">↻ Reprocessar foto</button>
+        <label class="review-check"><input type="checkbox" id="reviewConfirmed"><span>Conferi todos os códigos e quantidades</span></label>
+      </div>
+      <button class="generate-button" id="generateButton" type="button" disabled>
+        <svg viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6zM14 2v5h5M9 13h6M9 17h6"/></svg>
+        Gerar Planilha Natura
+      </button>
+    </section>
+
+    <section class="workspace hidden" id="successSection" aria-labelledby="successTitle">
+      <div class="success-card">
+        <div class="success-icon">✓</div>
+        <span class="step-label">ETAPA 3 DE 3</span>
+        <h2 id="successTitle">Planilha pronta!</h2>
+        <p>Seu pedido foi revisado e está no formato de importação da Natura.</p>
+        <div class="file-card">
+          <div class="excel-icon">X</div>
+          <div><strong id="successFilename">pedido_natura.xlsx</strong><span id="successSummary"></span></div>
+        </div>
+        <button class="whatsapp-button" id="shareButton" type="button">Compartilhar no WhatsApp</button>
+        <a class="download-button" id="downloadButton" href="#" download>↓ Baixar planilha</a>
+        <button class="new-order" id="newOrderButton" type="button">Fazer novo pedido</button>
+      </div>
+    </section>
+
+    <section class="workspace history-section hidden" id="historySection" aria-labelledby="historyTitle">
+      <button class="back-link" id="historyBack" type="button">← Voltar ao início</button>
+      <div class="section-heading"><div><span class="step-label">ARQUIVOS GERADOS</span><h2 id="historyTitle">Últimas planilhas</h2></div></div>
+      <div class="history-list" id="historyList"></div>
+    </section>
+  </main>
+
+  <input class="visually-hidden" id="cameraInput" type="file" accept="image/*" capture="environment">
+  <input class="visually-hidden" id="galleryInput" type="file" accept="image/*">
+
+  <div class="loading hidden" id="loading" role="status" aria-live="polite">
+    <div class="spinner"></div><strong id="loadingTitle">Lendo a foto…</strong><span id="loadingText">Identificando códigos e quantidades</span>
+  </div>
+  <div class="toast hidden" id="toast" role="alert"></div>
+
+  <footer><span>Caderno para Natura</span><small>Seus dados ficam neste sistema.</small></footer>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
+
