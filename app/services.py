@@ -126,36 +126,49 @@ def extract_rows_with_gemini(content: bytes, mime_type: str) -> list[dict]:
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY não configurada.")
 
-    try:
-        from google import genai
-        from google.genai import types
+    from google import genai
+    from google.genai import types
 
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
-            contents=[types.Part.from_bytes(data=content, mime_type=mime_type), AI_PROMPT],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_json_schema=AI_SCHEMA,
-                temperature=0,
-            ),
-        )
-        payload = json.loads(response.text or "{}")
-        return normalize_ai_items(payload.get("items", []))
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
-        raise RuntimeError("A IA retornou uma leitura inválida.") from exc
-    except Exception as exc:
-        logger.warning("Gemini image extraction failed: %s: %s", type(exc).__name__, exc)
-        status_code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
-        if status_code == 429:
-            message = "O limite gratuito da IA foi atingido. Tente novamente em um minuto."
-        elif status_code in (401, 403):
-            message = "A chave da IA não foi autorizada."
-        elif status_code == 400:
-            message = "A IA não aceitou o formato desta foto."
-        else:
-            message = "A leitura com IA está temporariamente indisponível."
-        raise RuntimeError(message) from exc
+    client = genai.Client(api_key=api_key)
+    primary = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+    fallback = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
+    models = list(dict.fromkeys([primary, fallback]))
+    last_error: Exception | None = None
+
+    for model in models:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=[types.Part.from_bytes(data=content, mime_type=mime_type), AI_PROMPT],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_json_schema=AI_SCHEMA,
+                    temperature=0,
+                ),
+            )
+            payload = json.loads(response.text or "{}")
+            return normalize_ai_items(payload.get("items", []))
+        except Exception as exc:
+            last_error = exc
+            logger.warning("Gemini model %s failed: %s: %s", model, type(exc).__name__, exc)
+            error_text = str(exc).upper()
+            if any(marker in error_text for marker in ("401", "403", "API_KEY_INVALID", "PERMISSION_DENIED")):
+                break
+
+    assert last_error is not None
+    error_text = str(last_error).upper()
+    status_code = getattr(last_error, "status_code", None) or getattr(last_error, "code", None)
+    if status_code == 429 or "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
+        message = "O limite gratuito da IA foi atingido. Tente novamente em um minuto."
+    elif status_code in (401, 403) or "API_KEY_INVALID" in error_text or "PERMISSION_DENIED" in error_text:
+        message = "A chave da IA não foi autorizada."
+    elif status_code == 400 or "INVALID_ARGUMENT" in error_text:
+        message = "A IA não aceitou o conteúdo desta foto."
+    elif isinstance(last_error, (json.JSONDecodeError, KeyError, TypeError, ValueError)):
+        message = "A IA retornou uma leitura inválida."
+    else:
+        message = "A leitura com IA está temporariamente indisponível."
+    raise RuntimeError(message) from last_error
 
 
 def extract_text_from_image(content: bytes) -> str:
